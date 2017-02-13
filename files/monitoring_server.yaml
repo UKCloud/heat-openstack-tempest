@@ -1,0 +1,41 @@
+---
+- hosts: localhost
+  tasks:
+    - name: install the latest version of git
+      yum:
+        name: git
+        state: latest
+    - name: install the latest version of vim
+      yum:
+        name: vim
+        state: latest
+    - name: Clone monitoring repo
+      git:
+        repo: _gitUrl_
+        dest: "/home/centos/_gitDest_"
+        force: yes
+    - name: Create openstack config directory
+      file:
+        dest: /home/centos/.config/openstack/
+        state: directory
+        owner: centos
+        group: centos
+    - name: Test file
+      stat: 
+        path: /home/centos/.config/openstack/clouds.yaml
+      register: fileStat
+    - name: Create openstack config file
+      file:
+        dest: /home/centos/.config/openstack/clouds.yaml
+        state: touch
+        owner: centos
+        group: centos
+      when: ( fileStat.stat.exists == 0 )
+    - name: Create Creds file for OpenStack
+      blockinfile:
+        dest: /home/centos/.config/openstack/clouds.yaml
+        marker: "#{mark} ANSIBLE MANAGED BLOCK"
+        content: "clouds:\n  _openstackRegion_:\n    auth:\n      auth_url: _openstackAuthUrl_\n      project_name: _openstackProjectName_\n      username: _openstackUsername_\n      password: _openstackPassword_"
+        insertafter: ^
+        owner: centos
+        group: centos

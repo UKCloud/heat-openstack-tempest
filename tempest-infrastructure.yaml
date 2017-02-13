@@ -1,0 +1,144 @@
+heat_template_version: 2015-10-15
+
+description: >
+   This HEAT template creates a VM built on Centos7 running a web server 
+   and orchestration code. Seperate VMs are deployed to run workload tests. 
+   The orchestration VM's runs tasks against the OpenStack services and workload
+   VM's and present the metrics over the web server. Science logic and other 
+   tempest tools can then collect and graph these  metrics to graph performance 
+   over time.
+parameters:
+  key_name:
+    type: string
+    description: SSH Key Pair
+    constraints:
+      - custom_constraint: nova.keypair
+  flavor:
+    type: string
+    description: Flavor to use for the orchestration server
+    default: t1.small
+    constraints:
+      - custom_constraint: nova.flavor
+  image:
+    type: string
+    description: Select a CentOS template
+    constraints:
+      - custom_constraint: glance.image
+  network:
+    type: string
+    description: Name of the network to create the VM on
+    constraints:
+      - custom_constraint: neutron.network
+  gitUrl:
+    type: string
+    description: github URL containing tempest code
+  gitDest:
+    type: string
+    description: git repo folder destination
+  openstackRegion:
+    type: string
+    description: OpenStack region name
+  openstackAuthUrl:
+    type: string
+    description: OpenStack authenitcation URL
+  openstackProjectName:
+    type: string
+    description: OpenStack project name
+  openstackUsername:
+    type: string
+    description: OpenStack username
+  openstackPassword:
+    type: string
+    description: OpenStack password
+  public_network:
+    type: string
+    description: OpenStack external network name
+  floating_ip:
+    type: string
+    label: Openstack floating IP
+    description: Openstack floating IP to externally access the server via
+
+resources:
+  ssh_ext_secgroup:
+    type: OS::Neutron::SecurityGroup
+    properties:
+      name: ssh_ext_secgroup
+      rules:
+        - protocol: tcp
+          remote_ip_prefix: 0.0.0.0/0
+          port_range_min: 22
+          port_range_max: 22
+        - protocol: icmp
+          remote_ip_prefix: 0.0.0.0/0
+        - protocol: tcp
+          remote_ip_prefix: 0.0.0.0/0
+          port_range_min: 80
+          port_range_max: 80
+        - protocol: icmp
+          remote_ip_prefix: 0.0.0.0/0
+
+  tempest_automation_server:
+    type: OS::Nova::Server
+    properties:
+      name: monAutomation
+      flavor: { get_param: flavor }
+      image: { get_param: image }
+      key_name: { get_param: key_name }
+      networks:
+        - port: { get_resource: tempest_automation_server_port0 }
+      security_groups:
+        - { get_resource: ssh_ext_secgroup }
+      user_data_format: SOFTWARE_CONFIG
+      user_data: { get_attr: [config_agent, config] }
+
+  tempest_automation_server_port0:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_param: network }
+      security_groups:
+        - { get_resource: ssh_ext_secgroup }
+
+  nat_public1:
+    type: OS::Neutron::FloatingIP
+    properties:
+      floating_network_id: { get_param: public_network }
+      port_id: { get_resource: tempest_automation_server_port0 }
+      floating_ip_address: { get_param: floating_ip }
+    depends_on: tempest_automation_server_port0
+
+  # Install, configure and enable the Heat configuration agent
+  config_agent:
+    type: collect-config-setup/install_config_agent_centos_yum.yaml
+
+  ansible_config:
+    type: OS::Heat::SoftwareConfig
+    properties:
+      group: ansible
+      config: 
+        str_replace:
+          template: { get_file: 'files/tempest_server.yaml' }
+          params:
+            _gitUrl_: { get_param: gitUrl }
+            _gitDest_: { get_param: gitDest }
+            _openstackRegion_: { get_param: openstackRegion }
+            _openstackAuthUrl_: { get_param: openstackAuthUrl }
+            _openstackProjectName_: { get_param: openstackProjectName }
+            _openstackUsername_: { get_param: openstackUsername }
+            _openstackPassword_: { get_param: openstackPassword }
+      outputs:
+      - name: result
+
+  deploy_ansible_config:
+    type: OS::Heat::SoftwareDeployment
+    properties:
+      signal_transport: CFN_SIGNAL
+      config:
+        get_resource: ansible_config
+      server:
+        get_resource: tempest_automation_server
+
+outputs:
+  stdout:
+    description: Ansible Output
+    value:
+      get_attr: [ deploy_ansible_config, deploy_stdout ]

@@ -1,0 +1,14 @@
+parameters:
+  flavor: openstack flavour name
+  image: openstack image name
+  key_name: openstack key registered to access server
+  network: private network name
+  gitUrl: 'https://github.com/UKCloud/openstack-monitoring.git'
+  gitDest: 'openstack-monitoring'
+  openstackRegion: openstack region
+  openstackAuthUrl: openstack auth URL
+  openstackProjectName: openstack project name
+  openstackUsername: openstack username
+  openstackPassword: openstack user password
+  public_network: floating IP network name
+  floating_ip: static floating IP you wish to use
