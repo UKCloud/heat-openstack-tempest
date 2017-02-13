@@ -8,6 +8,10 @@ description: >
    tempest tools can then collect and graph these  metrics to graph performance 
    over time.
 parameters:
+  DeployIdentifier:
+    default: { deployment_string }
+    type: string
+    description: Deployment ID
   key_name:
     type: string
     description: SSH Key Pair
@@ -125,6 +129,7 @@ resources:
             _openstackProjectName_: { get_param: openstackProjectName }
             _openstackUsername_: { get_param: openstackUsername }
             _openstackPassword_: { get_param: openstackPassword }
+            _deploymentId_ : { get_param: DeployIdentifier }
       outputs:
       - name: result
 
@@ -137,8 +142,16 @@ resources:
       server:
         get_resource: tempest_automation_server
 
+  deployment_string:
+      type: 'OS::Heat::RandomString'
+      properties:
+        length: 512
+        salt: String
+
 outputs:
   stdout:
     description: Ansible Output
     value:
       get_attr: [ deploy_ansible_config, deploy_stdout ]
+
+

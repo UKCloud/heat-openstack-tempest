@@ -1,5 +1,7 @@
 ---
 - hosts: localhost
+  vars:
+    deployment_id: _deploymentId_
   tasks:
     - name: install the latest version of git
       yum:
@@ -9,33 +11,56 @@
       yum:
         name: vim
         state: latest
-    - name: Clone monitoring repo
+    - name: install the latest version of pip
+      yum:
+        name: python-pip
+        state: latest
+    - name: install the latest version of python-devel
+      yum:
+        name: python-devel
+        state: latest
+    - name: install the latest version of gcc
+      yum:
+        name: gcc
+        state: latest
+    - name: install the latest version of openssl-devel
+      yum:
+        name: openssl-devel
+        state: latest
+    - name: Clone UKCloud test repo
       git:
         repo: _gitUrl_
         dest: "/home/centos/_gitDest_"
         force: yes
-    - name: Create openstack config directory
-      file:
-        dest: /home/centos/.config/openstack/
-        state: directory
-        owner: centos
-        group: centos
+    - name: Clone tempest repo
+      git:
+        repo: http://git.openstack.org/openstack/tempest
+        dest: "/home/centos/tempest"
+        force: yes
     - name: Test file
       stat: 
-        path: /home/centos/.config/openstack/clouds.yaml
+        path: /home/centos/tempest/etc/accounts.yaml
       register: fileStat
     - name: Create openstack config file
       file:
-        dest: /home/centos/.config/openstack/clouds.yaml
+        dest: /home/centos/tempest/etc/accounts.yaml
         state: touch
         owner: centos
         group: centos
       when: ( fileStat.stat.exists == 0 )
     - name: Create Creds file for OpenStack
       blockinfile:
-        dest: /home/centos/.config/openstack/clouds.yaml
+        dest: /home/centos/tempest/etc/accounts.yaml
         marker: "#{mark} ANSIBLE MANAGED BLOCK"
-        content: "clouds:\n  _openstackRegion_:\n    auth:\n      auth_url: _openstackAuthUrl_\n      project_name: _openstackProjectName_\n      username: _openstackUsername_\n      password: _openstackPassword_"
+        content: "- username:  _openstackUsername_\n  tenant_name: _openstackProjectName_\n  password: _openstackPassword_\n"
         insertafter: ^
-        owner: centos
-        group: centos
+    - name: upgrade pip
+      pip:
+        name: pip
+    - name: install tempest
+      pip:
+        name: tempest
+    - name: download test image
+      get_url:
+        url: http://download.cirros-cloud.net/0.3.4/cirros-0.3.4-x86_64-disk.img
+        dest: /home/centos/cirros-0.3.4-x86_64-disk.img
