@@ -27,16 +27,33 @@
       yum:
         name: openssl-devel
         state: latest
-    - name: Clone UKCloud test repo
-      git:
-        repo: _gitUrl_
-        dest: "/home/centos/_gitDest_"
-        force: yes
     - name: Clone tempest repo
       git:
         repo: http://git.openstack.org/openstack/tempest
         dest: "/home/centos/tempest"
         force: yes
+    - name: Clone refstack-client repo for interop tests
+      git:
+        repo: https://git.openstack.org/openstack/refstack-client
+        dest: "/home/centos/refstack-client"
+        force: yes
+    - name: Clone UKCloud test repo
+      git:
+        repo: _gitUrl_
+        dest: "/home/centos/tempest/_gitDest_"
+        force: yes
+    - name: Initalise tempest
+      shell: testr init
+      args:
+        chdir: /home/centos/tempest
+        creates: .testrepository
+    - name: Correct permissions
+      file: 
+        path: /home/centos
+        owner: centos
+        group: centos
+        state: directory
+        recurse: yes
     - name: Test file
       stat: 
         path: /home/centos/tempest/etc/accounts.yaml
@@ -57,10 +74,36 @@
     - name: upgrade pip
       pip:
         name: pip
+        extra_args: --upgrade
     - name: install tempest
       pip:
         name: tempest
+    - name: install nosetests
+      pip:
+        name: nose
+    - name: install tox
+      pip:
+        name: tox
+    - name: install refstack
+      pip:
+        name: refstack
     - name: download test image
       get_url:
         url: http://download.cirros-cloud.net/0.3.4/cirros-0.3.4-x86_64-disk.img
         dest: /home/centos/cirros-0.3.4-x86_64-disk.img
+    - name: setup tempest config
+      file:
+        src: /home/centos/tempest/_gitDest_/etc/tempest.conf
+        dest: /home/centos/tempest/etc/tempest.conf
+        owner: centos
+        group: centos
+        state: link
+    - name: Download mandatory interop tests
+      get_url: 
+        url: https://refstack.openstack.org/api/v1/guidelines/2016.01/tests?type=required
+        dest: /home/centos/refstack-client/mandatory_interop.tests
+    - name: Configure refstack
+      shell: ./setup_env && touch .refstackSetupComplete
+      args:
+        chdir: /home/centos/refstack-client
+        creates: .refstackSetupComplete
