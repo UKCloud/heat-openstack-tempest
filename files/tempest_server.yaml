@@ -42,18 +42,6 @@
         repo: _gitUrl_
         dest: "/home/centos/tempest/_gitDest_"
         force: yes
-    - name: Initalise tempest
-      shell: testr init
-      args:
-        chdir: /home/centos/tempest
-        creates: .testrepository
-    - name: Correct permissions
-      file: 
-        path: /home/centos
-        owner: centos
-        group: centos
-        state: directory
-        recurse: yes
     - name: Test file
       stat: 
         path: /home/centos/tempest/etc/accounts.yaml
@@ -91,6 +79,11 @@
       get_url:
         url: http://download.cirros-cloud.net/0.3.4/cirros-0.3.4-x86_64-disk.img
         dest: /home/centos/cirros-0.3.4-x86_64-disk.img
+    - name: Initalise tempest
+      shell: testr init
+      args:
+        chdir: /home/centos/tempest
+        creates: .testrepository
     - name: setup tempest config
       file:
         src: /home/centos/tempest/_gitDest_/etc/tempest.conf
@@ -107,3 +100,10 @@
       args:
         chdir: /home/centos/refstack-client
         creates: .refstackSetupComplete
+    - name: Correct permissions
+      file: 
+        path: /home/centos
+        owner: centos
+        group: centos
+        state: directory
+        recurse: yes
