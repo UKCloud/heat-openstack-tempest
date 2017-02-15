@@ -84,7 +84,7 @@ resources:
   tempest_automation_server:
     type: OS::Nova::Server
     properties:
-      name: monAutomation
+      name: tempest
       flavor: { get_param: flavor }
       image: { get_param: image }
       key_name: { get_param: key_name }
